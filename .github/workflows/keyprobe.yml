@@ -1,0 +1,84 @@
+name: KeyProbe API Key Validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      required_capability:
+        description: 'Required capability (optional, e.g., "Streaming")'
+        required: false
+        type: string
+        default: ''
+      required_model:
+        description: 'Required model (optional, e.g., "gpt-4o")'
+        required: false
+        type: string
+        default: ''
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.21'
+        
+    - name: Build KeyProbe
+      run: |
+        go build -o keyprobe .
+        
+    - name: Safety Check - Verify API Key Secret
+      run: |
+        # Fail early if LLM_API_KEY secret is missing or empty
+        if [ -z "$LLM_API_KEY" ]; then
+          echo "❌ LLM_API_KEY secret is missing or empty"
+          echo "Please add LLM_API_KEY to your repository secrets"
+          exit 1
+        fi
+        echo "✅ API key secret is present"
+      env:
+        LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+        
+    - name: Validate API Key and Requirements
+      run: |
+        # Build KeyProbe command with optional requirement flags
+        CMD="./keyprobe"
+        
+        # Add --require flag if capability is specified
+        if [ -n "${{ github.event.inputs.required_capability }}" ]; then
+          CMD="$CMD --require '${{ github.event.inputs.required_capability }}'"
+          echo "Checking for required capability: ${{ github.event.inputs.required_capability }}"
+        fi
+        
+        # Add --require-model flag if model is specified
+        if [ -n "${{ github.event.inputs.required_model }}" ]; then
+          CMD="$CMD --require-model '${{ github.event.inputs.required_model }}'"
+          echo "Checking for required model: ${{ github.event.inputs.required_model }}"
+        fi
+        
+        # Add API key
+        CMD="$CMD '$LLM_API_KEY'"
+        
+        echo "Running command: $CMD"
+        
+        # Execute validation - KeyProbe will exit with code 1 if:
+        # - API key is invalid
+        # - Required capability is not available
+        # - Required model is not accessible
+        if eval "$CMD"; then
+          echo "✅ All validations passed"
+        else
+          echo "❌ Validation failed"
+          exit 1
+        fi
+      env:
+        LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
