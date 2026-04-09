@@ -27,10 +27,12 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       
-    - name: Setup Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: '1.21'
+    - name: Setup Go Module
+      run: |
+        if [ ! -f go.mod ]; then
+          go mod init keyprobe
+        fi
+        go mod tidy
         
     - name: Build KeyProbe
       run: go build -o keyprobe .
