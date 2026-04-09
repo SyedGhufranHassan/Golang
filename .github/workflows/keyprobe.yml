@@ -7,12 +7,12 @@ on:
         description: 'Required capability (e.g., "Streaming", "Embeddings")'
         required: false
         type: string
-        default: 'Streaming'
+        default: ''
       required_model:
         description: 'Required model (e.g., "gpt-4o", "claude-3-sonnet")'
         required: false
         type: string
-        default: 'claude-3-sonnet'
+        default: ''
   push:
     branches: [ main, master ]
   pull_request:
@@ -86,38 +86,6 @@ jobs:
           echo ""
           echo "❌ Validation failed - workflow will exit with error"
           exit 1
-        fi
-      env:
-        LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
-        
-    - name: Advanced Validation with JSON (Optional)
-      if: github.event.inputs.required_capability != '' || github.event.inputs.required_model != ''
-      run: |
-        echo "📊 Running additional JSON validation for detailed reporting..."
-        
-        # Build command with JSON output
-        CMD="./keyprobe --output json"
-        
-        if [ -n "${{ github.event.inputs.required_capability }}" ]; then
-          CMD="$CMD --require '${{ github.event.inputs.required_capability }}'"
-        fi
-        
-        if [ -n "${{ github.event.inputs.required_model }}" ]; then
-          CMD="$CMD --require-model '${{ github.event.inputs.required_model }}'"
-        fi
-        
-        CMD="$CMD '$LLM_API_KEY'"
-        
-        # Get JSON output for detailed analysis
-        JSON_OUTPUT=$(eval "$CMD" 2>/dev/null)
-        JSON_EXIT_CODE=$?
-        
-        if [ $JSON_EXIT_CODE -eq 0 ]; then
-          echo "✅ JSON validation successful"
-          echo "📋 Validation result:"
-          echo "$JSON_OUTPUT" | jq '.' || echo "$JSON_OUTPUT"
-        else
-          echo "⚠️ JSON validation failed (expected if requirements not met)"
         fi
       env:
         LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
