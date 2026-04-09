@@ -4,15 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       required_capability:
-        description: 'Required capability (optional, e.g., "Streaming")'
+        description: 'Required capability (e.g., "Streaming", "Embeddings")'
         required: false
         type: string
-        default: ''
+        default: 'Streaming'
       required_model:
-        description: 'Required model (optional, e.g., "gpt-4o")'
+        description: 'Required model (e.g., "gpt-4o", "claude-3-sonnet")'
         required: false
         type: string
-        default: ''
+        default: 'claude-3-sonnet'
   push:
     branches: [ main, master ]
   pull_request:
@@ -60,29 +60,64 @@ jobs:
         # Add --require flag if capability is specified
         if [ -n "${{ github.event.inputs.required_capability }}" ]; then
           CMD="$CMD --require '${{ github.event.inputs.required_capability }}'"
-          echo "Checking for required capability: ${{ github.event.inputs.required_capability }}"
+          echo "🔍 Checking for required capability: ${{ github.event.inputs.required_capability }}"
         fi
         
         # Add --require-model flag if model is specified
         if [ -n "${{ github.event.inputs.required_model }}" ]; then
           CMD="$CMD --require-model '${{ github.event.inputs.required_model }}'"
-          echo "Checking for required model: ${{ github.event.inputs.required_model }}"
+          echo "🔍 Checking for required model: ${{ github.event.inputs.required_model }}"
         fi
         
         # Add API key
         CMD="$CMD '$LLM_API_KEY'"
         
-        echo "Running command: $CMD"
+        echo "🚀 Running command: $CMD"
+        echo ""
         
         # Execute validation - KeyProbe will exit with code 1 if:
         # - API key is invalid
         # - Required capability is not available
         # - Required model is not accessible
         if eval "$CMD"; then
-          echo "✅ All validations passed"
+          echo ""
+          echo "✅ All validations passed successfully"
         else
-          echo "❌ Validation failed"
+          echo ""
+          echo "❌ Validation failed - workflow will exit with error"
           exit 1
+        fi
+      env:
+        LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+        
+    - name: Advanced Validation with JSON (Optional)
+      if: github.event.inputs.required_capability != '' || github.event.inputs.required_model != ''
+      run: |
+        echo "📊 Running additional JSON validation for detailed reporting..."
+        
+        # Build command with JSON output
+        CMD="./keyprobe --output json"
+        
+        if [ -n "${{ github.event.inputs.required_capability }}" ]; then
+          CMD="$CMD --require '${{ github.event.inputs.required_capability }}'"
+        fi
+        
+        if [ -n "${{ github.event.inputs.required_model }}" ]; then
+          CMD="$CMD --require-model '${{ github.event.inputs.required_model }}'"
+        fi
+        
+        CMD="$CMD '$LLM_API_KEY'"
+        
+        # Get JSON output for detailed analysis
+        JSON_OUTPUT=$(eval "$CMD" 2>/dev/null)
+        JSON_EXIT_CODE=$?
+        
+        if [ $JSON_EXIT_CODE -eq 0 ]; then
+          echo "✅ JSON validation successful"
+          echo "📋 Validation result:"
+          echo "$JSON_OUTPUT" | jq '.' || echo "$JSON_OUTPUT"
+        else
+          echo "⚠️ JSON validation failed (expected if requirements not met)"
         fi
       env:
         LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
