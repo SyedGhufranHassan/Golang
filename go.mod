@@ -1,5 +1,3 @@
-module keyprobe
+module github.com/your-username/testing-keyprobe
 
-go 1.26.1
-
-require github.com/datumbrain/otters v1.0.5
+go 1.21

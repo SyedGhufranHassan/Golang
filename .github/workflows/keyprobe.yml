@@ -27,15 +27,18 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       
-    - name: Setup Go Module
-      run: |
-        if [ ! -f go.mod ]; then
-          go mod init keyprobe
-        fi
-        go mod tidy
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.21'
         
-    - name: Build KeyProbe
-      run: go build -o keyprobe .
+    - name: Build KeyProbe CLI
+      run: |
+        git clone https://github.com/datumbrain/keyprobe.git keyprobe-temp
+        cd keyprobe-temp
+        go build -o ../keyprobe .
+        cd ..
+        rm -rf keyprobe-temp
         
     - name: Safety Check - Verify API Key Secret
       run: |
